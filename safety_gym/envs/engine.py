@@ -853,7 +853,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
 
         if self.world is None:
             self.world = World(self.world_config_dict)
-            self.world.reset()
+            # self.world.reset()
             self.world.build()
         else:
             self.world.reset(build=False)
@@ -1016,7 +1016,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
             pos = np.asarray(pos)
             if pos.shape == (3,):
                 pos = pos[:2]  # Truncate Z coordinate
-            z = np.complex(*self.ego_xy(pos))  # X, Y as real, imaginary components
+            z = complex(*self.ego_xy(pos))  # X, Y as real, imaginary components
             dist = np.abs(z)
             angle = np.angle(z) % (np.pi * 2)
             bin_size = (np.pi * 2) / self.lidar_num_bins
@@ -1267,6 +1267,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
 
             # Reward processing
             reward = self.reward()
+            info['reward_distance'] = reward
 
             # Constraint violations
             info.update(self.cost())
@@ -1278,6 +1279,7 @@ class Engine(gym.Env, gym.utils.EzPickle):
             if self.goal_met():
                 info['goal_met'] = True
                 reward += self.reward_goal
+                info['reward_goal'] = 1
                 if self.continue_goal:
                     # Update the internal layout so we can correctly resample (given objects have moved)
                     self.update_layout()
@@ -1295,11 +1297,16 @@ class Engine(gym.Env, gym.utils.EzPickle):
                         self.build_goal()
                 else:
                     self.done = True
+            else:
+                info['reward_goal'] = 0
 
         # Timeout
         self.steps += 1
         if self.steps >= self.num_steps:
             self.done = True  # Maximum number of steps in an episode reached
+        
+        # reward = np.sum(np.array([self.weight['reward_distance'], self.weight['reward_goal']]) * np.array([info['reward_distance'], info['reward_goal']]))
+        # info['cost'] = np.sum(np.array([self.weight['cost_buttons'], self.weight['cost_gremlins'], self.weight['cost_hazards']]) * np.array([info['cost_buttons'], info['cost_gremlins'], info['cost_hazards']]))
 
         return self.obs(), reward, self.done, info
 
